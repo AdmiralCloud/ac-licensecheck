@@ -6,7 +6,7 @@
   "main": "index.js",
   "license": "MIT",
   "dependencies": {
-    "axios": "^0.21.0",
+    "await-exec": "^0.1.2",
     "lodash": "^4.17.20"
   },
   "devDependencies": {
