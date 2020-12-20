@@ -2,3 +2,4 @@
 # NODE
 ########################
 node_modules
+.npmrc
