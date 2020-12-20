@@ -1,6 +1,7 @@
 const { promises: fs } = require("fs")
 const _ = require('lodash')
-const axios = require('axios')
+const exec = require('await-exec')
+
 
 const licenseMapping = [
   { license: 'agpl-3.0', link: 'https://choosealicense.com/licenses/agpl-3.0/' },
@@ -29,15 +30,20 @@ const licenseCheck = async () => {
   
   let report = []
   for (let i = 0; i < packages.length; i++) {
-    // https://api.npms.io/v2/package/ac-geoip
     let p = packages[i]
     // ignore private packages ()
     if (!_.startsWith(p.version, 'git+ssh')) {
       console.log('Collecting info: ', p.package)
-      let response = await axios.get(`https://api.npms.io/v2/package/${encodeURIComponent(p.package)}`)
+      let response = await exec(`npm info ${p.package} --json`)
+      try {
+        response = JSON.parse(response.stdout)
+      }
+      catch(e) {
+        console.log('Parse NPM failed', e)
+      }
       let reportItem = {
         package: p.package,
-        license: _.get(response, 'data.collected.metadata.license', 'n/a')
+        license: _.get(response, 'license', 'n/a')
       }
       report.push(reportItem)  
     }
