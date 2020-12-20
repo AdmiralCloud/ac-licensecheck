@@ -1,0 +1,15 @@
+{
+  "name": "ac-licensecheck",
+  "version": "0.0.1",
+  "author": "Mark Poepping",
+  "main": "index.js",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^0.21.0",
+    "lodash": "^4.17.20"
+  },
+  "devDependencies": {
+    "ac-semantic-release": "^0.2.5",
+    "eslint": "^7.16.0"
+  }
+}
