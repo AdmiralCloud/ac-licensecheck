@@ -1,3 +1,16 @@
+<a name="0.1.2"></a>
+
+## [0.1.2](https://github.com/admiralcloud/ac-licensecheck/compare/v0.1.1..v0.1.2) (2020-12-20 19:16:58)
+
+
+### Bug Fix
+
+* **App:** Do not use npms.io but npm info | MP | [85ad17f830e3ecb00d5b86d2d21df8ea16d05cd7](https://github.com/admiralcloud/ac-licensecheck/commit/85ad17f830e3ecb00d5b86d2d21df8ea16d05cd7)    
+Using npm directly via exec command instead of npms.io which is quite outdated.
+### Chores
+
+* **App:** Updated packages | MP | [ad3836752497c0744d59652cec4ed25dbd520da8](https://github.com/admiralcloud/ac-licensecheck/commit/ad3836752497c0744d59652cec4ed25dbd520da8)    
+Updated packages
 <a name="0.1.1"></a>
 
 ## [0.1.1](https://github.com/admiralcloud/ac-licensecheck/compare/v0.1.0..v0.1.1) (2020-12-20 14:03:41)
