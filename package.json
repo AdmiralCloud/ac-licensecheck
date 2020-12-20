@@ -1,7 +1,8 @@
 {
   "name": "ac-licensecheck",
+  "description": "Check licenses of your dependencies and creates a simple report.",
   "version": "0.1.0",
-  "author": "Mark Poepping",
+  "author": "Mark Poepping (https://www.admiralcloud.com/)",
   "main": "index.js",
   "license": "MIT",
   "dependencies": {
@@ -11,5 +12,10 @@
   "devDependencies": {
     "ac-semantic-release": "^0.2.5",
     "eslint": "^7.16.0"
-  }
+  },
+   "bin": {
+    "licensecheck": "bin/licensecheck",
+    "aclc": "bin/licensecheck"
+  },
+  "keywords": ["licenses"]
 }
