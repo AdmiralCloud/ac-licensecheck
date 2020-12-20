@@ -14,7 +14,7 @@ const licenseMapping = [
 ]
 
 const licenseCheck = async () => {
-  const package = process.argv[2]
+  const package = process.argv[2] || '.'
   let pjson = await fs.readFile(`${package}/package.json`, 'utf-8')
   pjson = JSON.parse(pjson)
   const name = _.get(pjson, 'name')
@@ -75,7 +75,8 @@ const licenseCheck = async () => {
 
   reportText += details
 
-
+  console.log('')
+  console.log('')
   console.log(reportText)
 }
 
