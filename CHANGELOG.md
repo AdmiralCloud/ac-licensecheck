@@ -1,3 +1,13 @@
+<a name="0.1.3"></a>
+
+## [0.1.3](https://github.com/admiralcloud/ac-licensecheck/compare/v0.1.2..v0.1.3) (2024-07-13 14:26:02)
+
+
+### Bug Fix
+
+* **App:** Package update | MP | [c1f626877560cc6c2e6c52fe7bb45d55e8487f34](https://github.com/admiralcloud/ac-licensecheck/commit/c1f626877560cc6c2e6c52fe7bb45d55e8487f34)    
+Package update  
+Related issues: [undefined/undefined#master](undefined/browse/master)
 <a name="0.1.2"></a>
 
 ## [0.1.2](https://github.com/admiralcloud/ac-licensecheck/compare/v0.1.1..v0.1.2) (2020-12-20 19:16:58)

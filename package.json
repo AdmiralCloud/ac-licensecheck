@@ -1,7 +1,7 @@
 {
   "name": "ac-licensecheck",
   "description": "Check licenses of your dependencies and creates a simple report.",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "author": "Mark Poepping (https://www.admiralcloud.com/)",
   "main": "index.js",
   "license": "MIT",
