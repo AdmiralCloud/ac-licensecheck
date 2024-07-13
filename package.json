@@ -7,11 +7,11 @@
   "license": "MIT",
   "dependencies": {
     "await-exec": "^0.1.2",
-    "lodash": "^4.17.20"
+    "lodash": "^4.17.21"
   },
   "devDependencies": {
-    "ac-semantic-release": "^0.2.5",
-    "eslint": "^7.16.0"
+    "ac-semantic-release": "^0.4.2",
+    "eslint": "^9.7.0"
   },
   "bin": {
     "licensecheck": "bin/licensecheck",
