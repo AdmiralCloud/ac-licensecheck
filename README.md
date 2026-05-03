@@ -1,28 +1,67 @@
 # AdmiralCloud License Check
-Reads the package.json of a given repository and tries to determine licenses for the dependencies.
 
-# Usage
-Install it globally or anywhere you want and the call it with the first CLI parameter being the path to the repository you want to analyze.
+[![Tests](https://github.com/AdmiralCloud/ac-licensecheck/actions/workflows/test.yml/badge.svg)](https://github.com/AdmiralCloud/ac-licensecheck/actions/workflows/test.yml)
+[![CodeQL](https://github.com/AdmiralCloud/ac-licensecheck/actions/workflows/codeql.yml/badge.svg)](https://github.com/AdmiralCloud/ac-licensecheck/actions/workflows/codeql.yml)
+Reads the `package.json` of a given repository and determines licenses for all dependencies.
 
-The response is a markup text you can copy and add to your README (see example below)
+## Usage
 
-# Example
-### AC License Report
-|Stat|Value|
+```
+node index.js [path] [--json] [--config=<policy.json>]
+```
+
+| Argument | Description |
 |---|---|
-|Repository|ac-licensecheck|
-|Date|Sun Dec 20 2020 14:04:03 GMT+0100 (GMT+01:00)|
-|Total|2|
-|Analyzed|2|
+| `path` | Path to the repository to analyze (default: `.`) |
+| `--json` | Output machine-readable JSON instead of markdown |
+| `--config=<path>` | Path to a JSON license policy file |
 
-&nbsp;
-### Licenses
-|License|Count|Percent|Info|
-|---|---|---|---|
-|MIT|2|100|https://choosealicense.com/licenses/mit/|
+## Output
 
-&nbsp;
-### Detailed Report
-|License|Packages|
+### Default (markdown)
+Prints a markdown report to stdout. Suitable for copy-pasting into a README.
+
+```
+node index.js ../ac-auth-server
+```
+
+### JSON mode
+Outputs a structured JSON object for CI/CD or centralized collection.
+
+```
+node index.js ../ac-auth-server --json --config=policy.json
+```
+
+```json
+{
+  "repository": "ac-auth-server",
+  "date": "2026-05-03T10:00:00.000Z",
+  "total": 42,
+  "analyzed": 42,
+  "violations": [],
+  "warnings": [],
+  "unknowns": [],
+  "report": [{ "package": "lodash", "license": "MIT", "status": "allowed" }]
+}
+```
+
+## License policy file
+
+```json
+{
+  "allowed": ["MIT", "ISC", "Apache-2.0", "BSD-2-Clause", "BSD-3-Clause"],
+  "warn": ["LGPL-3.0", "MPL-2.0"],
+  "forbidden": ["GPL-3.0", "AGPL-3.0"]
+}
+```
+
+Each package in the report gets a `status` field: `allowed`, `warn`, `forbidden`, `private`, or `unknown`.
+
+## Exit codes
+
+| Code | Meaning |
 |---|---|
-|MIT|axios, lodash|
+| `0` | No forbidden licenses found |
+| `1` | One or more forbidden licenses detected |
+
+Exit code 1 allows CI/CD pipelines to fail on license violations.

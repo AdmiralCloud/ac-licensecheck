@@ -5,17 +5,24 @@
   "author": "Mark Poepping (https://www.admiralcloud.com/)",
   "main": "index.js",
   "license": "MIT",
-  "dependencies": {
-    "await-exec": "^0.1.2",
-    "lodash": "^4.17.21"
+  "dependencies": {},
+  "scripts": {
+    "test": "mocha test/**/*.test.js"
   },
   "devDependencies": {
-    "ac-semantic-release": "^0.4.5",
-    "eslint": "^9.24.0"
+    "@eslint/js": "^10.0.1",
+    "ac-semantic-release": "^1.0.2",
+    "eslint": "^10.3.0",
+    "globals": "^17.6.0",
+    "mocha": "^11.7.5"
   },
   "bin": {
     "licensecheck": "bin/licensecheck",
     "aclc": "bin/licensecheck"
+  },
+  "resolutions": {
+    "mocha/diff": ">=8.0.3",
+    "mocha/serialize-javascript": ">=7.0.5"
   },
   "keywords": [
     "licenses"

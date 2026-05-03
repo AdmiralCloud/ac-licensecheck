@@ -1,89 +1,139 @@
 const { promises: fs } = require("fs")
-const _ = require('lodash')
-const exec = require('await-exec')
-
+const { exec: execCb } = require("child_process")
+const { promisify } = require("util")
+const exec = promisify(execCb)
 
 const licenseMapping = [
-  { license: 'agpl-3.0', link: 'https://choosealicense.com/licenses/agpl-3.0/' },
-  { license: 'gpl-3.0', link: 'https://choosealicense.com/licenses/gpl-3.0/' },
-  { license: 'lgpl-3.0', link: 'https://choosealicense.com/licenses/lgpl-3.0/' },
-  { license: 'mpl-2.0', link: 'https://choosealicense.com/licenses/mpl-2.0/' },
-  { license: 'bsd-2-clause', link: 'https://choosealicense.com/licenses/bsd-2-clause/' },
-  { license: 'apache-2.0', link: 'https://choosealicense.com/licenses/apache-2.0/' },
-  { license: 'mit', link: 'https://choosealicense.com/licenses/mit/' },
-  { license: 'wtfpl', link: 'https://choosealicense.com/licenses/wtfpl/' }
+  { license: 'agpl-3.0',    link: 'https://choosealicense.com/licenses/agpl-3.0/' },
+  { license: 'gpl-3.0',     link: 'https://choosealicense.com/licenses/gpl-3.0/' },
+  { license: 'lgpl-3.0',    link: 'https://choosealicense.com/licenses/lgpl-3.0/' },
+  { license: 'mpl-2.0',     link: 'https://choosealicense.com/licenses/mpl-2.0/' },
+  { license: 'bsd-2-clause',link: 'https://choosealicense.com/licenses/bsd-2-clause/' },
+  { license: 'apache-2.0',  link: 'https://choosealicense.com/licenses/apache-2.0/' },
+  { license: 'mit',         link: 'https://choosealicense.com/licenses/mit/' },
+  { license: 'wtfpl',       link: 'https://choosealicense.com/licenses/wtfpl/' }
 ]
 
-const licenseCheck = async () => {
-  const package = process.argv[2] || '.'
-  let pjson = await fs.readFile(`${package}/package.json`, 'utf-8')
-  pjson = JSON.parse(pjson)
-  const name = _.get(pjson, 'name')
-  let packages = []
-  _.forEach(_.merge(_.get(pjson, 'dependencies'), _.get(pjson, 'devDependencies')), (val, key) => {
-    packages.push({
-      package: key,
-      version: val
-    })
-  })
-  packages = _.orderBy(packages, 'package')
-  
-  let report = []
-  for (let i = 0; i < packages.length; i++) {
-    let p = packages[i]
-    // ignore private packages ()
-    if (!_.startsWith(p.version, 'git+ssh')) {
-      console.log('Collecting info: ', p.package)
-      let response = await exec(`npm info ${p.package} --json`)
-      try {
-        response = JSON.parse(response.stdout)
-      }
-      catch(e) {
-        console.log('Parse NPM failed', e)
-      }
-      let reportItem = {
-        package: p.package,
-        license: _.get(response, 'license', 'n/a')
-      }
-      report.push(reportItem)  
-    }
-    else {
-      let reportItem = {
-        package: p.package,
-        license: 'Private package'
-      }
-      report.push(reportItem)  
-    }
-  }
+const BATCH_SIZE = 10 // parallel npm info calls
 
-  let groups = _.countBy(report, 'license')
-  let stats = {
-    repository: name,
-    date: new Date().toString(),
-    total: _.size(packages),
-    analyzed: _.size(report)
-  }
-
-  let reportText = `# AC License Report\n`
-  reportText+= `|Stat|Value|\n|---|---|\n`    
-  _.forEach(stats, (val, key) => {
-    reportText+= `|${_.upperFirst(key)}|${val}|\n`
-  })
-
-  reportText+= `\n&nbsp;\n### Licenses\n|License|Count|Percent|Info|\n|---|---|---|---|\n`
-  let details = `\n&nbsp;\n### Detailed Report\n|License|Packages|\n|---|---|\n`
-  _.forEach(groups, (val, key) => {
-    let license = _.find(licenseMapping, { license: _.toLower(key) })
-    reportText+= `|${key}|${val}|${_.round((val/_.size(packages))*100,2)}|${_.get(license, 'link', '')}|\n`
-    let p = _.filter(report, { license: key })
-    details+= `|${key}|${_.join(_.map(p, item => { return item.package }), ', ') }|\n`
-  })
-
-  reportText += details
-
-  console.log('')
-  console.log('')
-  console.log(reportText)
+const classify = (license, policy = { allowed: [], warn: [], forbidden: [] }) => {
+  const l = license.toLowerCase()
+  if (policy.forbidden.some(f => f.toLowerCase() === l)) return 'forbidden'
+  if (policy.warn.some(w => w.toLowerCase() === l)) return 'warn'
+  if (policy.allowed.some(a => a.toLowerCase() === l)) return 'allowed'
+  return license === 'Private package' ? 'private' : 'unknown'
 }
 
-licenseCheck()
+const fetchLicense = async(p) => {
+  if (p.version.startsWith('git+ssh')) {
+    return { package: p.package, license: 'Private package' }
+  }
+  try {
+    const response = await exec(`npm info ${p.package} --json`)
+    const parsed = JSON.parse(response.stdout)
+    return { package: p.package, license: parsed.license ?? 'n/a' }
+  }
+  catch {
+    return { package: p.package, license: 'n/a' }
+  }
+}
+
+const licenseCheck = async() => {
+  const args = process.argv.slice(2)
+  const packagePath = args.find(a => !a.startsWith('--')) || '.'
+  const jsonMode = args.includes('--json')
+  const configPath = args.find(a => a.startsWith('--config='))?.split('=')[1]
+
+  // Load license policy if provided
+  let policy = { allowed: [], warn: [], forbidden: [] }
+  if (configPath) {
+    try {
+      policy = JSON.parse(await fs.readFile(configPath, 'utf-8'))
+    }
+    catch (e) {
+      console.error('Could not load license policy:', e.message)
+    }
+  }
+
+  const pjson = JSON.parse(await fs.readFile(`${packagePath}/package.json`, 'utf-8'))
+  const name = pjson.name
+
+  const merged = { ...pjson.dependencies, ...pjson.devDependencies }
+  const packages = Object.entries(merged).map(([pkg, version]) => ({ package: pkg, version }))
+  packages.sort((a, b) => a.package.localeCompare(b.package))
+
+  // Fetch in parallel batches
+  let report = []
+  if (!jsonMode) console.log(`Scanning ${packages.length} packages in batches of ${BATCH_SIZE}...`)
+
+  for (let i = 0; i < packages.length; i += BATCH_SIZE) {
+    const batch = packages.slice(i, i + BATCH_SIZE)
+    if (!jsonMode) console.log(`Progress: ${i}/${packages.length}`)
+    const results = await Promise.allSettled(batch.map(fetchLicense))
+    results.forEach(r => {
+      if (r.status === 'fulfilled') report.push(r.value)
+    })
+  }
+
+  report = report.map(item => ({
+    ...item,
+    status: classify(item.license, policy)
+  }))
+
+  const violations = report.filter(r => r.status === 'forbidden')
+  const warnings   = report.filter(r => r.status === 'warn')
+  const unknowns   = report.filter(r => r.status === 'unknown')
+
+  if (jsonMode) {
+    // Machine-readable output for CI
+    console.log(JSON.stringify({
+      repository: name,
+      date: new Date().toISOString(),
+      total: packages.length,
+      analyzed: report.length,
+      violations,
+      warnings,
+      unknowns,
+      report
+    }, null, 2))
+  }
+  else {
+    // Human-readable markdown report (original behavior)
+    const groups = report.reduce((acc, item) => {
+      acc[item.license] = (acc[item.license] || 0) + 1
+      return acc
+    }, {})
+
+    let reportText = `# AC License Report – ${name}\n`
+    reportText += `|Stat|Value|\n|---|---|\n`
+    reportText += `|Repository|${name}|\n|Date|${new Date().toString()}|\n`
+    reportText += `|Total|${packages.length}|\n|Analyzed|${report.length}|\n`
+    reportText += `|Violations|${violations.length}|\n|Warnings|${warnings.length}|\n`
+    reportText += `\n### Licenses\n|License|Count|%|Status|Info|\n|---|---|---|---|---|\n`
+
+    for (const [key, val] of Object.entries(groups)) {
+      const link = licenseMapping.find(m => m.license === key.toLowerCase())
+      const status = classify(key, policy)
+      const pct = Math.round((val / packages.length) * 10000) / 100
+      reportText += `|${key}|${val}|${pct}|${status}|${link?.link ?? ''}|\n`
+    }
+
+    if (violations.length) {
+      reportText += `\n### ⚠️ Violations (forbidden licenses)\n`
+      violations.forEach(v => { reportText += `- ${v.package}: ${v.license}\n` })
+    }
+    if (warnings.length) {
+      reportText += `\n### ⚡ Warnings (review required)\n`
+      warnings.forEach(w => { reportText += `- ${w.package}: ${w.license}\n` })
+    }
+
+    console.log(reportText)
+  }
+
+  // Exit code 1 if forbidden licenses found (CI/CD reacts to this)
+  if (violations.length > 0) process.exit(1)
+}
+
+if (require.main === module) licenseCheck()
+
+module.exports = { fetchLicense, classify }
