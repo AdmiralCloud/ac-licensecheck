@@ -1,7 +1,7 @@
 # AdmiralCloud License Check
 
 [![Tests](https://github.com/AdmiralCloud/ac-licensecheck/actions/workflows/test.yml/badge.svg)](https://github.com/AdmiralCloud/ac-licensecheck/actions/workflows/test.yml)
-[![CodeQL](https://github.com/AdmiralCloud/ac-licensecheck/actions/workflows/codeql.yml/badge.svg)](https://github.com/AdmiralCloud/ac-licensecheck/actions/workflows/codeql.yml)
+[![CodeQL](https://github.com/AdmiralCloud/ac-licensecheck/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/AdmiralCloud/ac-licensecheck/actions/workflows/github-code-scanning/codeql)
 
 Reads the `package.json` of a given repository and determines licenses for all dependencies.
 
@@ -57,6 +57,15 @@ node index.js ../ac-sanitizer--json --config=policy.json
 ```
 
 Each package in the report gets a `status` field: `allowed`, `warn`, `forbidden`, `private`, or `unknown`.
+
+## Test coverage
+
+Requires [c8](https://github.com/bcoe/c8) installed globally (`npm install -g c8`).
+
+```bash
+c8 yarn test
+c8 report --reporter=text
+```
 
 ## Exit codes
 

@@ -71,6 +71,7 @@ const licenseCheck = async() => {
     if (!jsonMode) console.log(`Progress: ${i}/${packages.length}`)
     const results = await Promise.allSettled(batch.map(fetchLicense))
     results.forEach(r => {
+      /* c8 ignore next -- fetchLicense never rejects, allSettled always fulfills */
       if (r.status === 'fulfilled') report.push(r.value)
     })
   }
@@ -109,13 +110,21 @@ const licenseCheck = async() => {
     reportText += `|Repository|${name}|\n|Date|${new Date().toString()}|\n`
     reportText += `|Total|${packages.length}|\n|Analyzed|${report.length}|\n`
     reportText += `|Violations|${violations.length}|\n|Warnings|${warnings.length}|\n`
-    reportText += `\n### Licenses\n|License|Count|%|Status|Info|\n|---|---|---|---|---|\n`
-
-    for (const [key, val] of Object.entries(groups)) {
-      const link = licenseMapping.find(m => m.license === key.toLowerCase())
-      const status = classify(key, policy)
-      const pct = Math.round((val / packages.length) * 10000) / 100
-      reportText += `|${key}|${val}|${pct}|${status}|${link?.link ?? ''}|\n`
+    if (configPath) {
+      reportText += `\n### Licenses\n|License|Count|%|Status|Info|\n|---|---|---|---|---|\n`
+      for (const [key, val] of Object.entries(groups)) {
+        const link = licenseMapping.find(m => m.license === key.toLowerCase())
+        const status = classify(key, policy)
+        const pct = Math.round((val / packages.length) * 10000) / 100
+        reportText += `|${key}|${val}|${pct}|${status}|${link?.link ?? ''}|\n`
+      }
+    } else {
+      reportText += `\n### Licenses\n|License|Count|%|Info|\n|---|---|---|---|\n`
+      for (const [key, val] of Object.entries(groups)) {
+        const link = licenseMapping.find(m => m.license === key.toLowerCase())
+        const pct = Math.round((val / packages.length) * 10000) / 100
+        reportText += `|${key}|${val}|${pct}|${link?.link ?? ''}|\n`
+      }
     }
 
     if (violations.length) {
@@ -136,4 +145,4 @@ const licenseCheck = async() => {
 
 if (require.main === module) licenseCheck()
 
-module.exports = { fetchLicense, classify }
+module.exports = { fetchLicense, classify, licenseCheck }

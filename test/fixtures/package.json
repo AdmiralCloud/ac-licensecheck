@@ -1,0 +1,10 @@
+{
+  "name": "test-repo",
+  "dependencies": {
+    "pkg-mit": "^1.0.0",
+    "pkg-isc": "^1.0.0",
+    "pkg-gpl": "^1.0.0",
+    "pkg-lgpl": "^1.0.0",
+    "pkg-private": "git+ssh://git@github.com/org/repo.git"
+  }
+}
