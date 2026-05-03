@@ -1,3 +1,12 @@
+## [0.2.4](https://github.com/admiralcloud/ac-licensecheck/compare/v0.2.3..v0.2.4) (2026-05-03 16:29:19)
+
+
+### Bug Fix
+
+
+* **App:** Fall back to legacy licenses[] field for old npm packages | MP | [56b0cf9e4925f710cef83628f754bfdf18df6e96](https://github.com/admiralcloud/ac-licensecheck/commit/56b0cf9e4925f710cef83628f754bfdf18df6e96)    
+Fall back to legacy licenses[] field for old npm packages  
+Related issues:
 ## [0.2.3](https://github.com/admiralcloud/ac-licensecheck/compare/v0.2.2..v0.2.3) (2026-05-03 16:23:39)
 
 
