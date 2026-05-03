@@ -1,3 +1,12 @@
+## [0.2.1](https://github.com/admiralcloud/ac-licensecheck/compare/v0.2.0..v0.2.1) (2026-05-03 14:31:15)
+
+
+### Bug Fix
+
+
+* **App:** Improved matching | MP | [cc4e6356f27094223bbca20da299995b1535098b](https://github.com/admiralcloud/ac-licensecheck/commit/cc4e6356f27094223bbca20da299995b1535098b)    
+Licenes should be checked against start of the string.  
+Related issues:
 # [0.2.0](https://github.com/admiralcloud/ac-licensecheck/compare/v0.1.3..v0.2.0) (2026-05-03 13:45:52)
 
 
