@@ -1,3 +1,12 @@
+## [0.2.2](https://github.com/admiralcloud/ac-licensecheck/compare/v0.2.1..v0.2.2) (2026-05-03 15:32:35)
+
+
+### Bug Fix
+
+
+* **App:** Normalize npm license field to string (object/array support) | MP | [af802ee3c5229c959402da509b17e4e1b22f2aa1](https://github.com/admiralcloud/ac-licensecheck/commit/af802ee3c5229c959402da509b17e4e1b22f2aa1)    
+Normalize npm license field to string (object/array support)  
+Related issues:
 ## [0.2.1](https://github.com/admiralcloud/ac-licensecheck/compare/v0.2.0..v0.2.1) (2026-05-03 14:31:15)
 
 
