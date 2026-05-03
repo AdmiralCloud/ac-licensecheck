@@ -1,3 +1,39 @@
+# [0.2.0](https://github.com/admiralcloud/ac-licensecheck/compare/v0.1.3..v0.2.0) (2026-05-03 13:45:52)
+
+
+### Feature
+
+
+* **App:** Rework of function | MP | [3740fa2cc084dfe2dd2d809ee16853908ef74620](https://github.com/admiralcloud/ac-licensecheck/commit/3740fa2cc084dfe2dd2d809ee16853908ef74620)    
+Return a machine-readable JSON. Remove dependencies and replace them with native functions. Added tests  
+Related issues:
+### Bug Fix
+
+
+* **App:** Minor improvements | MP | [66b16117f8a147cd7ad3e7fcd4ee476e354619e3](https://github.com/admiralcloud/ac-licensecheck/commit/66b16117f8a147cd7ad3e7fcd4ee476e354619e3)    
+Minor improvements  
+Related issues:
+* **App:** Use execFile instead of exec | MP | [574c73cdbbdb1fc4cb860d29f613f5837fb30d3e](https://github.com/admiralcloud/ac-licensecheck/commit/574c73cdbbdb1fc4cb860d29f613f5837fb30d3e)    
+no shell is involved, so special characters  
+Related issues:
+### Tests
+
+
+* **App:** Fixed tests | MP | [5065f1b79b8b0d87095d80fa383f9fa112cd5b51](https://github.com/admiralcloud/ac-licensecheck/commit/5065f1b79b8b0d87095d80fa383f9fa112cd5b51)    
+Fixed tests  
+Related issues:
+### Chores
+
+
+* **App:** Minor adjustments | MP | [006a74ecdafcecb35e360fbdb036d3aabbc346dc](https://github.com/admiralcloud/ac-licensecheck/commit/006a74ecdafcecb35e360fbdb036d3aabbc346dc)    
+User CodeQL from github directly. Updated README  
+Related issues:
+### Chores
+
+
+* **App:** Updated packages | MP | [2043d5fc3fcf24135f0fd5a0670c9e6e9c4be44a](https://github.com/admiralcloud/ac-licensecheck/commit/2043d5fc3fcf24135f0fd5a0670c9e6e9c4be44a)    
+Updated packages  
+Related issues:
 <a name="0.1.3"></a>
 
 ## [0.1.3](https://github.com/admiralcloud/ac-licensecheck/compare/v0.1.2..v0.1.3) (2024-07-13 14:26:02)
