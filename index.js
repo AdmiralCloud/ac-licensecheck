@@ -29,6 +29,14 @@ const classify = (license, policy = { allowed: [], warn: [], forbidden: [] }) =>
   return license === 'Private package' ? 'private' : 'unknown'
 }
 
+const normalizeLicense = (license) => {
+  if (!license) return 'n/a'
+  if (typeof license === 'string') return license
+  if (Array.isArray(license)) return license.map(normalizeLicense).join(', ')
+  if (typeof license === 'object' && license.type) return license.type
+  return 'n/a'
+}
+
 const fetchLicense = async(p) => {
   if (p.version.startsWith('git+ssh')) {
     return { package: p.package, license: 'Private package' }
@@ -36,7 +44,7 @@ const fetchLicense = async(p) => {
   try {
     const response = await execFile('npm', ['info', p.package, '--json'])
     const parsed = JSON.parse(response.stdout)
-    return { package: p.package, license: parsed.license ?? 'n/a' }
+    return { package: p.package, license: normalizeLicense(parsed.license) }
   }
   catch {
     return { package: p.package, license: 'n/a' }

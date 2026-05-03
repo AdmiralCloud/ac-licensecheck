@@ -119,6 +119,18 @@ describe('fetchLicense', () => {
     const result = await fetchLicense({ package: 'bad-pkg', version: '^1.0.0' })
     assert.deepStrictEqual(result, { package: 'bad-pkg', license: 'n/a' })
   })
+
+  it('normalizes license object { type, url } to a string', async () => {
+    mockExecImpl = (cmd, args, cb) => cb(null, { stdout: '{"license":{"type":"MIT","url":"https://example.com"}}' })
+    const result = await fetchLicense({ package: 'old-pkg', version: '^1.0.0' })
+    assert.deepStrictEqual(result, { package: 'old-pkg', license: 'MIT' })
+  })
+
+  it('normalizes license array to a comma-separated string', async () => {
+    mockExecImpl = (cmd, args, cb) => cb(null, { stdout: '{"license":["MIT","Apache-2.0"]}' })
+    const result = await fetchLicense({ package: 'multi-pkg', version: '^1.0.0' })
+    assert.deepStrictEqual(result, { package: 'multi-pkg', license: 'MIT, Apache-2.0' })
+  })
 })
 
 // ─── licenseCheck – markdown output ──────────────────────────────────────────
