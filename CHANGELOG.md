@@ -1,3 +1,12 @@
+## [0.2.3](https://github.com/admiralcloud/ac-licensecheck/compare/v0.2.2..v0.2.3) (2026-05-03 16:23:39)
+
+
+### Bug Fix
+
+
+* **App:** Add policy override support with 1-year expiry | MP | [444111dbe4752dda8595d02a6cdd976bda113daf](https://github.com/admiralcloud/ac-licensecheck/commit/444111dbe4752dda8595d02a6cdd976bda113daf)    
+Adds override support for packages where npm returns no license field. Overrides expire after one year and trigger exit code 1 to  
+Related issues:
 ## [0.2.2](https://github.com/admiralcloud/ac-licensecheck/compare/v0.2.1..v0.2.2) (2026-05-03 15:32:35)
 
 
