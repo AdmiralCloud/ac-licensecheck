@@ -5,7 +5,7 @@ const path = require('path')
 let mockExecImpl = (cmd, args, cb) => cb(null, { stdout: '{"license":"MIT"}' })
 require('child_process').execFile = (...args) => mockExecImpl(...args)
 
-const { fetchLicense, classify, licenseCheck } = require('../index')
+const { fetchLicense, classify, applyOverride, licenseCheck } = require('../index')
 
 const FIXTURES = path.join(__dirname, 'fixtures')
 const POLICY   = path.join(FIXTURES, 'policy.json')
@@ -14,7 +14,8 @@ const POLICY   = path.join(FIXTURES, 'policy.json')
 const fixtureExec = (cmd, args, cb) => {
   const licenses = { 'pkg-mit': 'MIT', 'pkg-isc': 'ISC', 'pkg-gpl': 'GPL-3.0', 'pkg-lgpl': 'LGPL-3.0' }
   const pkg = args[1]
-  cb(null, { stdout: JSON.stringify({ license: licenses[pkg] ?? 'MIT' }) })
+  const license = licenses[pkg]
+  cb(null, { stdout: JSON.stringify(license ? { license } : {}) })
 }
 
 // Runs licenseCheck with given argv, captures console.log output and exit code
@@ -74,11 +75,11 @@ describe('classify', () => {
     assert.strictEqual(classify('MIT'), 'unknown')
   })
 
-  it('matches when license is a prefix of the policy entry (Apache → Apache-2.0)', () => {
-    assert.strictEqual(classify('Apache', policy), 'allowed')
+  it('does NOT match when license is less specific than policy entry (Apache vs Apache-2.0)', () => {
+    assert.strictEqual(classify('Apache', policy), 'unknown')
   })
 
-  it('matches when policy entry is a prefix of the license (Apache-2.0 → Apache)', () => {
+  it('matches when license is more specific than policy entry (Apache-2.0 matches policy Apache)', () => {
     const loosePolicy = { allowed: ['Apache'], warn: [], forbidden: [] }
     assert.strictEqual(classify('Apache-2.0', loosePolicy), 'allowed')
   })
@@ -133,6 +134,53 @@ describe('fetchLicense', () => {
   })
 })
 
+// ─── applyOverride ────────────────────────────────────────────────────────────
+
+describe('applyOverride', () => {
+  const freshDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10) // 30 days ago
+  const expiredDate = new Date(Date.now() - 400 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10) // 400 days ago
+
+  const overrides = {
+    'html5shiv': { license: 'MIT', approvedBy: 'MP', approvedAt: freshDate, reason: 'Confirmed on GitHub' }
+  }
+
+  it('does not apply override when license was auto-detected', () => {
+    const item = { package: 'html5shiv', license: 'MIT', status: 'allowed' }
+    const result = applyOverride(item, overrides)
+    assert.strictEqual(result.override, undefined)
+  })
+
+  it('applies override when license is n/a', () => {
+    const item = { package: 'html5shiv', license: 'n/a', status: 'unknown' }
+    const result = applyOverride(item, overrides)
+    assert.strictEqual(result.license, 'MIT')
+    assert.ok(result.override)
+  })
+
+  it('returns override-expired when override is older than 1 year', () => {
+    const expiredOverrides = {
+      'html5shiv': { license: 'MIT', approvedBy: 'MP', approvedAt: expiredDate }
+    }
+    const item = { package: 'html5shiv', license: 'n/a', status: 'unknown' }
+    const result = applyOverride(item, expiredOverrides)
+    assert.strictEqual(result.status, 'override-expired')
+    assert.ok(result.override)
+  })
+
+  it('does not apply override when no entry exists for the package', () => {
+    const item = { package: 'unknown-pkg', license: 'n/a', status: 'unknown' }
+    const result = applyOverride(item, overrides)
+    assert.strictEqual(result.license, 'n/a')
+    assert.strictEqual(result.override, undefined)
+  })
+
+  it('handles empty overrides object', () => {
+    const item = { package: 'html5shiv', license: 'n/a', status: 'unknown' }
+    const result = applyOverride(item, {})
+    assert.strictEqual(result.license, 'n/a')
+  })
+})
+
 // ─── licenseCheck – markdown output ──────────────────────────────────────────
 
 describe('licenseCheck (markdown, no config)', () => {
@@ -156,8 +204,8 @@ describe('licenseCheck (markdown, no config)', () => {
   })
 
   it('includes total and analyzed counts', () => {
-    assert.ok(output.includes('|Total|5|'), `Total missing in:\n${output}`)
-    assert.ok(output.includes('|Analyzed|5|'), `Analyzed missing in:\n${output}`)
+    assert.ok(output.includes('|Total|6|'), `Total missing in:\n${output}`)
+    assert.ok(output.includes('|Analyzed|6|'), `Analyzed missing in:\n${output}`)
   })
 })
 
@@ -208,7 +256,7 @@ describe('licenseCheck (JSON mode)', () => {
   })
 
   it('has the correct top-level keys', () => {
-    for (const key of ['repository', 'date', 'total', 'analyzed', 'violations', 'warnings', 'unknowns', 'report']) {
+    for (const key of ['repository', 'date', 'total', 'analyzed', 'violations', 'warnings', 'unknowns', 'expired', 'report']) {
       assert.ok(key in parsed, `missing key: ${key}`)
     }
   })
@@ -218,8 +266,8 @@ describe('licenseCheck (JSON mode)', () => {
   })
 
   it('sets total and analyzed correctly', () => {
-    assert.strictEqual(parsed.total, 5)
-    assert.strictEqual(parsed.analyzed, 5)
+    assert.strictEqual(parsed.total, 6)
+    assert.strictEqual(parsed.analyzed, 6)
   })
 
   it('each report item has package, license, and status fields', () => {
@@ -240,6 +288,14 @@ describe('licenseCheck (JSON mode)', () => {
 
   it('date is a valid ISO string', () => {
     assert.ok(!isNaN(Date.parse(parsed.date)), `invalid date: ${parsed.date}`)
+  })
+
+  it('applies a valid override for pkg-nolicense and classifies it as allowed', () => {
+    const item = parsed.report.find(r => r.package === 'pkg-nolicense')
+    assert.ok(item, 'pkg-nolicense missing from report')
+    assert.strictEqual(item.license, 'MIT')
+    assert.strictEqual(item.status, 'allowed')
+    assert.ok(item.override, 'override metadata missing')
   })
 })
 
@@ -271,5 +327,24 @@ describe('licenseCheck (exit code)', () => {
     mockExecImpl = (cmd, args, cb) => cb(null, { stdout: '{"license":"MIT"}' })
     const { exitCode } = await run([FIXTURES, '--json', `--config=${POLICY}`])
     assert.strictEqual(exitCode, null)
+  })
+
+  it('exits with code 1 when an override has expired', async () => {
+    const path = require('path')
+    const os   = require('os')
+    const { writeFileSync, mkdtempSync } = require('fs')
+    const expiredDate = new Date(Date.now() - 400 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+    const tmpDir = mkdtempSync(path.join(os.tmpdir(), 'lc-test-'))
+    writeFileSync(path.join(tmpDir, 'package.json'), JSON.stringify({
+      name: 'test-expired', dependencies: { 'no-license-pkg': '^1.0.0' }
+    }))
+    const expiredPolicy = path.join(tmpDir, 'policy.json')
+    writeFileSync(expiredPolicy, JSON.stringify({
+      allowed: ['MIT'], warn: [], forbidden: [],
+      overrides: { 'no-license-pkg': { license: 'MIT', approvedBy: 'MP', approvedAt: expiredDate } }
+    }))
+    mockExecImpl = (cmd, args, cb) => cb(null, { stdout: '{}' }) // no license field
+    const { exitCode } = await run([tmpDir, '--json', `--config=${expiredPolicy}`])
+    assert.strictEqual(exitCode, 1)
   })
 })

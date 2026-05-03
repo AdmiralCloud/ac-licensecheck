@@ -28,5 +28,19 @@
     "SSPL-1.0",
     "Commons-Clause",
     "CC-BY-SA-4.0"
-  ]
+  ],
+  "overrides": {
+    "html5shiv": {
+      "license": "MIT",
+      "reason": "No license field on npm, MIT confirmed on GitHub (https://github.com/aFarkas/html5shiv)",
+      "approvedBy": "MP",
+      "approvedAt": "2026-05-03"
+    },
+    "pkg-nolicense": {
+      "license": "MIT",
+      "reason": "Test fixture package with no license field",
+      "approvedBy": "MP",
+      "approvedAt": "2026-05-03"
+    }
+  }
 }

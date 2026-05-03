@@ -30,7 +30,7 @@ node index.js ../ac-sanitizer
 Outputs a structured JSON object for CI/CD or centralized collection.
 
 ```
-node index.js ../ac-sanitizer--json --config=policy.json
+node index.js ../ac-sanitizer --json --config=policy.json
 ```
 
 ```json
@@ -42,6 +42,7 @@ node index.js ../ac-sanitizer--json --config=policy.json
   "violations": [],
   "warnings": [],
   "unknowns": [],
+  "expired": [],
   "report": [{ "package": "lodash", "license": "MIT", "status": "allowed" }]
 }
 ```
@@ -52,11 +53,42 @@ node index.js ../ac-sanitizer--json --config=policy.json
 {
   "allowed": ["MIT", "ISC", "Apache-2.0", "BSD-2-Clause", "BSD-3-Clause"],
   "warn": ["LGPL-3.0", "MPL-2.0"],
-  "forbidden": ["GPL-3.0", "AGPL-3.0"]
+  "forbidden": ["GPL-3.0", "AGPL-3.0"],
+  "overrides": {
+    "html5shiv": {
+      "license": "MIT",
+      "reason": "No license field on npm, MIT confirmed on GitHub",
+      "approvedBy": "MP",
+      "approvedAt": "2026-05-03"
+    }
+  }
 }
 ```
 
-Each package in the report gets a `status` field: `allowed`, `warn`, `forbidden`, `private`, or `unknown`.
+Each package in the report gets a `status` field: `allowed`, `warn`, `forbidden`, `private`, `unknown`, or `override-expired`.
+
+### License matching
+
+Matching is case-insensitive. The policy entry acts as the anchor: a reported license matches if it starts with the policy entry.
+
+| Policy entry | Reported license | Match |
+|---|---|---|
+| `Apache-2.0` | `Apache-2.0-only` | ✓ |
+| `GPL-3.0` | `GPL-3.0-only` | ✓ |
+| `Apache` | `Apache-2.0` | ✓ (policy is intentionally broad) |
+| `Apache-2.0` | `Apache` | ✗ (too vague → use an override) |
+| `Apache-2.0` | `Apache-3.0` | ✗ (different version) |
+
+### Overrides
+
+Overrides allow you to manually classify packages whose license cannot be auto-detected (e.g. no `license` field on npm). They are **only applied when auto-detection fails** — if npm returns a license, the override is ignored.
+
+Each override requires:
+- `license` — the actual license of the package
+- `approvedBy` — who approved the override
+- `approvedAt` — ISO date (YYYY-MM-DD) when it was approved
+
+Overrides expire after **1 year**. Expired overrides appear as `override-expired` in the report and trigger exit code 1, prompting a re-review.
 
 ## Test coverage
 
@@ -71,7 +103,7 @@ c8 report --reporter=text
 
 | Code | Meaning |
 |---|---|
-| `0` | No forbidden licenses found |
-| `1` | One or more forbidden licenses detected |
+| `0` | No issues found |
+| `1` | Forbidden licenses or expired overrides detected |
 
 Exit code 1 allows CI/CD pipelines to fail on license violations.

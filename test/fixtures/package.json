@@ -5,6 +5,7 @@
     "pkg-isc": "^1.0.0",
     "pkg-gpl": "^1.0.0",
     "pkg-lgpl": "^1.0.0",
+    "pkg-nolicense": "^1.0.0",
     "pkg-private": "git+ssh://git@github.com/org/repo.git"
   }
 }
