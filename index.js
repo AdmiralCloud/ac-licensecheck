@@ -16,11 +16,16 @@ const licenseMapping = [
 
 const BATCH_SIZE = 10 // parallel npm info calls
 
-const classify = (license, policy = { allowed: [], warn: [], forbidden: [] }) => {
+const matchesPolicy = (license, policyEntry) => {
   const l = license.toLowerCase()
-  if (policy.forbidden.some(f => f.toLowerCase() === l)) return 'forbidden'
-  if (policy.warn.some(w => w.toLowerCase() === l)) return 'warn'
-  if (policy.allowed.some(a => a.toLowerCase() === l)) return 'allowed'
+  const p = policyEntry.toLowerCase()
+  return l === p || l.startsWith(p) || p.startsWith(l)
+}
+
+const classify = (license, policy = { allowed: [], warn: [], forbidden: [] }) => {
+  if (policy.forbidden.some(f => matchesPolicy(license, f))) return 'forbidden'
+  if (policy.warn.some(w => matchesPolicy(license, w))) return 'warn'
+  if (policy.allowed.some(a => matchesPolicy(license, a))) return 'allowed'
   return license === 'Private package' ? 'private' : 'unknown'
 }
 

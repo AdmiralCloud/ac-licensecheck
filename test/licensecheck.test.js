@@ -73,6 +73,19 @@ describe('classify', () => {
   it('returns unknown with empty policy', () => {
     assert.strictEqual(classify('MIT'), 'unknown')
   })
+
+  it('matches when license is a prefix of the policy entry (Apache → Apache-2.0)', () => {
+    assert.strictEqual(classify('Apache', policy), 'allowed')
+  })
+
+  it('matches when policy entry is a prefix of the license (Apache-2.0 → Apache)', () => {
+    const loosePolicy = { allowed: ['Apache'], warn: [], forbidden: [] }
+    assert.strictEqual(classify('Apache-2.0', loosePolicy), 'allowed')
+  })
+
+  it('matches GPL-3.0-only against forbidden GPL-3.0', () => {
+    assert.strictEqual(classify('GPL-3.0-only', policy), 'forbidden')
+  })
 })
 
 // ─── fetchLicense ─────────────────────────────────────────────────────────────
