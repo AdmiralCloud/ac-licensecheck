@@ -1,0 +1,5 @@
+{
+  "allowed": ["MIT", "ISC"],
+  "warn": ["LGPL-3.0"],
+  "forbidden": ["GPL-3.0"]
+}

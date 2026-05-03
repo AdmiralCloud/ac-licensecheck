@@ -5,4 +5,5 @@ node_modules
 .npmrc
 .claude
 policy.json
+!test/fixtures/policy.json
 coverage/tmp
