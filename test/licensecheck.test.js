@@ -1,8 +1,8 @@
 const assert = require('assert')
 
-// Patch child_process.exec before loading the module so promisify captures the mock
-let mockExecImpl = (cmd, cb) => cb(null, { stdout: '{"license":"MIT"}' })
-require('child_process').exec = (...args) => mockExecImpl(...args)
+// Patch child_process.execFile before loading the module so promisify captures the mock
+let mockExecImpl = (cmd, args, cb) => cb(null, { stdout: '{"license":"MIT"}' })
+require('child_process').execFile = (...args) => mockExecImpl(...args)
 
 const { fetchLicense, classify } = require('../index')
 
@@ -51,25 +51,25 @@ describe('fetchLicense', () => {
   })
 
   it('returns the license from npm info', async () => {
-    mockExecImpl = (cmd, cb) => cb(null, { stdout: '{"license":"ISC"}' })
+    mockExecImpl = (cmd, args, cb) => cb(null, { stdout: '{"license":"ISC"}' })
     const result = await fetchLicense({ package: 'some-pkg', version: '^1.0.0' })
     assert.deepStrictEqual(result, { package: 'some-pkg', license: 'ISC' })
   })
 
   it('returns "n/a" when license field is missing', async () => {
-    mockExecImpl = (cmd, cb) => cb(null, { stdout: '{"name":"some-pkg","version":"1.0.0"}' })
+    mockExecImpl = (cmd, args, cb) => cb(null, { stdout: '{"name":"some-pkg","version":"1.0.0"}' })
     const result = await fetchLicense({ package: 'some-pkg', version: '^1.0.0' })
     assert.deepStrictEqual(result, { package: 'some-pkg', license: 'n/a' })
   })
 
-  it('returns "n/a" when exec throws', async () => {
-    mockExecImpl = (cmd, cb) => cb(new Error('network error'))
+  it('returns "n/a" when execFile throws', async () => {
+    mockExecImpl = (cmd, args, cb) => cb(new Error('network error'))
     const result = await fetchLicense({ package: 'broken-pkg', version: '^1.0.0' })
     assert.deepStrictEqual(result, { package: 'broken-pkg', license: 'n/a' })
   })
 
   it('returns "n/a" when npm returns invalid JSON', async () => {
-    mockExecImpl = (cmd, cb) => cb(null, { stdout: 'not json' })
+    mockExecImpl = (cmd, args, cb) => cb(null, { stdout: 'not json' })
     const result = await fetchLicense({ package: 'bad-pkg', version: '^1.0.0' })
     assert.deepStrictEqual(result, { package: 'bad-pkg', license: 'n/a' })
   })

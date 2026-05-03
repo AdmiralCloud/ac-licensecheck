@@ -1,7 +1,7 @@
 const { promises: fs } = require("fs")
-const { exec: execCb } = require("child_process")
+const { execFile: execFileCb } = require("child_process")
 const { promisify } = require("util")
-const exec = promisify(execCb)
+const execFile = promisify(execFileCb)
 
 const licenseMapping = [
   { license: 'agpl-3.0',    link: 'https://choosealicense.com/licenses/agpl-3.0/' },
@@ -29,7 +29,7 @@ const fetchLicense = async(p) => {
     return { package: p.package, license: 'Private package' }
   }
   try {
-    const response = await exec(`npm info ${p.package} --json`)
+    const response = await execFile('npm', ['info', p.package, '--json'])
     const parsed = JSON.parse(response.stdout)
     return { package: p.package, license: parsed.license ?? 'n/a' }
   }
