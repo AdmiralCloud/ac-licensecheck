@@ -132,6 +132,12 @@ describe('fetchLicense', () => {
     const result = await fetchLicense({ package: 'multi-pkg', version: '^1.0.0' })
     assert.deepStrictEqual(result, { package: 'multi-pkg', license: 'MIT, Apache-2.0' })
   })
+
+  it('falls back to licenses[] field when license is absent (old npm format)', async () => {
+    mockExecImpl = (cmd, args, cb) => cb(null, { stdout: '{"licenses":["MIT"]}' })
+    const result = await fetchLicense({ package: 'html5-history-api', version: '^4.0.0' })
+    assert.deepStrictEqual(result, { package: 'html5-history-api', license: 'MIT' })
+  })
 })
 
 // ─── applyOverride ────────────────────────────────────────────────────────────

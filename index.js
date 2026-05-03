@@ -59,7 +59,7 @@ const fetchLicense = async(p) => {
   try {
     const response = await execFile('npm', ['info', p.package, '--json'])
     const parsed = JSON.parse(response.stdout)
-    return { package: p.package, license: normalizeLicense(parsed.license) }
+    return { package: p.package, license: normalizeLicense(parsed.license ?? parsed.licenses) }
   }
   catch {
     return { package: p.package, license: 'n/a' }
@@ -150,7 +150,8 @@ const licenseCheck = async() => {
         const pct = Math.round((val / packages.length) * 10000) / 100
         reportText += `|${key}|${val}|${pct}|${status}|${link?.link ?? ''}|\n`
       }
-    } else {
+    }
+ else {
       reportText += `\n### Licenses\n|License|Count|%|Info|\n|---|---|---|---|\n`
       for (const [key, val] of Object.entries(groups)) {
         const link = licenseMapping.find(m => m.license === key.toLowerCase())
