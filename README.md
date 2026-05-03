@@ -2,6 +2,7 @@
 
 [![Tests](https://github.com/AdmiralCloud/ac-licensecheck/actions/workflows/test.yml/badge.svg)](https://github.com/AdmiralCloud/ac-licensecheck/actions/workflows/test.yml)
 [![CodeQL](https://github.com/AdmiralCloud/ac-licensecheck/actions/workflows/codeql.yml/badge.svg)](https://github.com/AdmiralCloud/ac-licensecheck/actions/workflows/codeql.yml)
+
 Reads the `package.json` of a given repository and determines licenses for all dependencies.
 
 ## Usage
@@ -22,19 +23,19 @@ node index.js [path] [--json] [--config=<policy.json>]
 Prints a markdown report to stdout. Suitable for copy-pasting into a README.
 
 ```
-node index.js ../ac-auth-server
+node index.js ../ac-sanitizer
 ```
 
 ### JSON mode
 Outputs a structured JSON object for CI/CD or centralized collection.
 
 ```
-node index.js ../ac-auth-server --json --config=policy.json
+node index.js ../ac-sanitizer--json --config=policy.json
 ```
 
 ```json
 {
-  "repository": "ac-auth-server",
+  "repository": "ac-sanitizer",
   "date": "2026-05-03T10:00:00.000Z",
   "total": 42,
   "analyzed": 42,
