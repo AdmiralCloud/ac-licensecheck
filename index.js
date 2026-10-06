@@ -23,11 +23,83 @@ const matchesPolicy = (license, policyEntry) => {
   return l === p || l.startsWith(p)
 }
 
-const classify = (license, policy = { allowed: [], warn: [], forbidden: [] }) => {
+// Non-SPDX spellings that are common on npm
+const LICENSE_ALIASES = { bsd: 'BSD-3-Clause' }
+
+const classifySingle = (license, policy) => {
   if (policy.forbidden.some(f => matchesPolicy(license, f))) return 'forbidden'
   if (policy.warn.some(w => matchesPolicy(license, w))) return 'warn'
   if (policy.allowed.some(a => matchesPolicy(license, a))) return 'allowed'
   return license === 'Private package' ? 'private' : 'unknown'
+}
+
+// Splits "(MIT OR Apache-2.0)" into tokens: '(', ')', 'AND', 'OR' and license ids
+// Commas count as OR (old npm "licenses" array = alternatives)
+const tokenize = (expression) => {
+  const parts = expression.replace(/[(),]/g, m => ` ${m === ',' ? 'OR' : m} `).split(/\s+/).filter(Boolean)
+  const tokens = []
+  for (const part of parts) {
+    const upper = part.toUpperCase()
+    if (part === '(' || part === ')' || upper === 'AND' || upper === 'OR') {
+      tokens.push(upper)
+      continue
+    }
+    // join multi word ids like "GPL-2.0 WITH Classpath-exception"
+    const last = tokens[tokens.length - 1]
+    if (last && !['(', ')', 'AND', 'OR'].includes(last)) tokens[tokens.length - 1] = `${last} ${part}`
+    else tokens.push(part)
+  }
+  return tokens
+}
+
+// forbidden > warn > unknown > allowed
+const STATUS_RANK = { allowed: 0, unknown: 1, warn: 2, forbidden: 3 }
+
+// AND: all licenses apply -> strictest status. OR: free choice -> mildest status.
+// Returns null when the expression is malformed.
+const classifyExpression = (expression, policy) => {
+  const tokens = tokenize(expression)
+  let pos = 0
+
+  const parseAtom = () => {
+    const token = tokens[pos++]
+    if (token === undefined || token === ')' || token === 'AND' || token === 'OR') return null
+    if (token === '(') {
+      const inner = parseOr()
+      if (inner === null || tokens[pos++] !== ')') return null
+      return inner
+    }
+    const single = classifySingle(LICENSE_ALIASES[token.toLowerCase()] ?? token, policy)
+    return single === 'private' ? 'unknown' : single
+  }
+
+  const parseAnd = () => {
+    let result = parseAtom()
+    while (result !== null && tokens[pos] === 'AND') {
+      pos++
+      const next = parseAtom()
+      result = next === null ? null : (STATUS_RANK[next] > STATUS_RANK[result] ? next : result)
+    }
+    return result
+  }
+
+  const parseOr = () => {
+    let result = parseAnd()
+    while (result !== null && tokens[pos] === 'OR') {
+      pos++
+      const next = parseAnd()
+      result = next === null ? null : (STATUS_RANK[next] < STATUS_RANK[result] ? next : result)
+    }
+    return result
+  }
+
+  const result = parseOr()
+  return pos === tokens.length ? result : null
+}
+
+const classify = (license, policy = { allowed: [], warn: [], forbidden: [] }) => {
+  if (license === 'Private package') return 'private'
+  return classifyExpression(license, policy) ?? 'unknown'
 }
 
 const applyOverride = (item, overrides = {}) => {

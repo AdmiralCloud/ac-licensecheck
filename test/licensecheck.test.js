@@ -89,6 +89,74 @@ describe('classify', () => {
   })
 })
 
+describe('classify (SPDX expressions)', () => {
+  const policy = {
+    allowed:   ['MIT', 'Apache-2.0', 'BSD-3-Clause', 'WTFPL'],
+    warn:      ['MPL-2.0'],
+    forbidden: ['GPL-3.0', 'AGPL-3.0']
+  }
+
+  it('maps the non-SPDX id "BSD" to BSD-3-Clause', () => {
+    assert.strictEqual(classify('BSD', policy), 'allowed')
+  })
+
+  it('does not map "BSD" when BSD-3-Clause is not allowed', () => {
+    assert.strictEqual(classify('BSD', { allowed: ['MIT'], warn: [], forbidden: [] }), 'unknown')
+  })
+
+  it('returns allowed for AND when all parts are allowed', () => {
+    assert.strictEqual(classify('(BSD-3-Clause AND Apache-2.0)', policy), 'allowed')
+  })
+
+  it('returns allowed for OR when all parts are allowed', () => {
+    assert.strictEqual(classify('(MIT OR Apache-2.0)', policy), 'allowed')
+    assert.strictEqual(classify('(WTFPL OR MIT)', policy), 'allowed')
+  })
+
+  it('returns allowed for OR when one alternative is allowed', () => {
+    assert.strictEqual(classify('(MIT OR GPL-3.0)', policy), 'allowed')
+  })
+
+  it('returns the strictest status for AND', () => {
+    assert.strictEqual(classify('(MIT AND GPL-3.0)', policy), 'forbidden')
+    assert.strictEqual(classify('(MIT AND MPL-2.0)', policy), 'warn')
+  })
+
+  it('returns unknown for AND when one part is not in the policy', () => {
+    assert.strictEqual(classify('(CC-BY-4.0 AND MIT)', policy), 'unknown')
+  })
+
+  it('respects precedence: AND binds stronger than OR', () => {
+    assert.strictEqual(classify('MIT OR GPL-3.0 AND AGPL-3.0', policy), 'allowed')
+    assert.strictEqual(classify('(MIT OR GPL-3.0) AND AGPL-3.0', policy), 'forbidden')
+  })
+
+  it('handles nested parentheses and lowercase operators', () => {
+    assert.strictEqual(classify('(MIT and (Apache-2.0 or GPL-3.0))', policy), 'allowed')
+  })
+
+  it('treats comma separated licenses (old npm array format) as alternatives', () => {
+    assert.strictEqual(classify('MIT, Apache-2.0', policy), 'allowed')
+    assert.strictEqual(classify('GPL-3.0, MIT', policy), 'allowed')
+  })
+
+  it('keeps ids with WITH exceptions together', () => {
+    assert.strictEqual(classify('GPL-3.0 WITH Classpath-exception-2.0', policy), 'forbidden')
+  })
+
+  it('returns unknown for n/a', () => {
+    assert.strictEqual(classify('n/a', policy), 'unknown')
+  })
+
+  it('returns unknown for malformed expressions', () => {
+    assert.strictEqual(classify('(MIT', policy), 'unknown')
+    assert.strictEqual(classify('MIT AND', policy), 'unknown')
+    assert.strictEqual(classify('AND MIT', policy), 'unknown')
+    assert.strictEqual(classify('MIT OR OR MIT', policy), 'unknown')
+    assert.strictEqual(classify('MIT )', policy), 'unknown')
+  })
+})
+
 // ─── fetchLicense ─────────────────────────────────────────────────────────────
 
 describe('fetchLicense', () => {
