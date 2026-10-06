@@ -1,3 +1,24 @@
+## [0.2.5](https://github.com/admiralcloud/ac-licensecheck/compare/v0.2.4..v0.2.5) (2026-10-06 16:39:14)
+
+
+### Bug Fix
+
+
+* **App:** Improve classification checks | MP | [021896281cd66634639837281433c0fa187fa486](https://github.com/admiralcloud/ac-licensecheck/commit/021896281cd66634639837281433c0fa187fa486)    
+Honor OR and AND properly, support SPDX expressions and "BSD" in license classification  
+Related issues:
+### Chores
+
+
+* **Misc:** Update Github workflow | MP | [d3f8f3358e7df5fad6fe02efbe50a4dc4d6e6e7b](https://github.com/admiralcloud/ac-licensecheck/commit/d3f8f3358e7df5fad6fe02efbe50a4dc4d6e6e7b)    
+Use version 7  
+Related issues:
+### Chores
+
+
+* **App:** Updated packages | MP | [0953355022dd3474365685e0300aabf17b4783c5](https://github.com/admiralcloud/ac-licensecheck/commit/0953355022dd3474365685e0300aabf17b4783c5)    
+Updated packages  
+Related issues:
 ## [0.2.4](https://github.com/admiralcloud/ac-licensecheck/compare/v0.2.3..v0.2.4) (2026-05-03 16:29:19)
 
 
