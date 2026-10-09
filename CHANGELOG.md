@@ -1,3 +1,12 @@
+## [0.2.6](https://github.com/admiralcloud/ac-licensecheck/compare/v0.2.5..v0.2.6) (2026-10-09 14:30:35)
+
+
+### Bug Fix
+
+
+* **App:** allow approved overrides for warn and unknown findings | MP | [fccfd8571438e0fe95a92efe06065933482d1149](https://github.com/admiralcloud/ac-licensecheck/commit/fccfd8571438e0fe95a92efe06065933482d1149)    
+Overrides now apply to any warn/unknown finding, not only to license "n/a".  
+Related issues:
 ## [0.2.5](https://github.com/admiralcloud/ac-licensecheck/compare/v0.2.4..v0.2.5) (2026-10-06 16:39:14)
 
 
