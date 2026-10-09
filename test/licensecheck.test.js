@@ -253,6 +253,36 @@ describe('applyOverride', () => {
     const result = applyOverride(item, {})
     assert.strictEqual(result.license, 'n/a')
   })
+
+  it('applies override to a warn finding and keeps the reported license', () => {
+    const warnOverrides = {
+      'axe-core': { license: 'MPL-2.0', approvedBy: 'MP', approvedAt: freshDate, reason: 'Test tooling only' }
+    }
+    const item = { package: 'axe-core', license: 'MPL-2.0', status: 'warn' }
+    const result = applyOverride(item, warnOverrides)
+    assert.ok(result.override)
+    assert.strictEqual(result.reportedLicense, 'MPL-2.0')
+  })
+
+  it('applies override to an unknown finding that has a license string', () => {
+    const customOverrides = {
+      'some-pkg': { license: 'BSD-3-Clause', approvedBy: 'MP', approvedAt: freshDate, reason: 'LICENSE file checked' }
+    }
+    const item = { package: 'some-pkg', license: 'SEE LICENSE IN LICENSE', status: 'unknown' }
+    const result = applyOverride(item, customOverrides)
+    assert.strictEqual(result.license, 'BSD-3-Clause')
+    assert.strictEqual(result.reportedLicense, 'SEE LICENSE IN LICENSE')
+  })
+
+  it('never applies an override to a forbidden finding', () => {
+    const forbiddenOverrides = {
+      'agpl-pkg': { license: 'MIT', approvedBy: 'MP', approvedAt: freshDate }
+    }
+    const item = { package: 'agpl-pkg', license: 'AGPL-3.0', status: 'forbidden' }
+    const result = applyOverride(item, forbiddenOverrides)
+    assert.strictEqual(result.override, undefined)
+    assert.strictEqual(result.status, 'forbidden')
+  })
 })
 
 // ─── licenseCheck – markdown output ──────────────────────────────────────────
@@ -420,5 +450,48 @@ describe('licenseCheck (exit code)', () => {
     mockExecImpl = (cmd, args, cb) => cb(null, { stdout: '{}' }) // no license field
     const { exitCode } = await run([tmpDir, '--json', `--config=${expiredPolicy}`])
     assert.strictEqual(exitCode, 1)
+  })
+})
+
+// ─── licenseCheck – overrides for warn/unknown findings ─────────────────────
+
+describe('licenseCheck (override of a warn finding)', () => {
+  const path = require('path')
+  const os   = require('os')
+  const { writeFileSync, mkdtempSync } = require('fs')
+  const freshDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+
+  const runWithPolicy = async(overrides) => {
+    const tmpDir = mkdtempSync(path.join(os.tmpdir(), 'lc-test-'))
+    writeFileSync(path.join(tmpDir, 'package.json'), JSON.stringify({
+      name: 'test-warn-override', dependencies: { 'mpl-pkg': '^1.0.0' }
+    }))
+    const policyFile = path.join(tmpDir, 'policy.json')
+    writeFileSync(policyFile, JSON.stringify({ allowed: ['MIT'], warn: ['MPL-2.0'], forbidden: ['GPL-3.0'], overrides }))
+    mockExecImpl = (cmd, args, cb) => cb(null, { stdout: '{"license":"MPL-2.0"}' })
+    const { output } = await run([tmpDir, '--json', `--config=${policyFile}`])
+    return JSON.parse(output)
+  }
+
+  it('settles a warn finding when an approved override exists', async() => {
+    const parsed = await runWithPolicy({
+      'mpl-pkg': { license: 'MPL-2.0', approvedBy: 'MP', approvedAt: freshDate, reason: 'Unmodified, test tooling' }
+    })
+    const item = parsed.report.find(r => r.package === 'mpl-pkg')
+    assert.strictEqual(item.status, 'allowed')
+    assert.strictEqual(item.reportedLicense, 'MPL-2.0')
+    assert.strictEqual(parsed.warnings.length, 0)
+  })
+
+  it('keeps the finding when the override approves a forbidden license', async() => {
+    const parsed = await runWithPolicy({
+      'mpl-pkg': { license: 'GPL-3.0', approvedBy: 'MP', approvedAt: freshDate }
+    })
+    assert.strictEqual(parsed.violations.length, 1)
+  })
+
+  it('keeps the warning when no override exists', async() => {
+    const parsed = await runWithPolicy({})
+    assert.strictEqual(parsed.warnings.length, 1)
   })
 })

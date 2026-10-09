@@ -103,8 +103,9 @@ const classify = (license, policy = { allowed: [], warn: [], forbidden: [] }) =>
 }
 
 const applyOverride = (item, overrides = {}) => {
-  // Only use override when auto-detection failed
-  if (item.license !== 'n/a') return item
+  // Overrides only apply to findings that need a decision (warn/unknown, incl. license 'n/a').
+  // Allowed packages need no override, forbidden packages can never be approved.
+  if (!['warn', 'unknown'].includes(item.status)) return item
   const override = overrides[item.package]
   if (!override) return item
 
@@ -113,7 +114,7 @@ const applyOverride = (item, overrides = {}) => {
     return { ...item, status: 'override-expired', override }
   }
 
-  return { ...item, license: override.license, override }
+  return { ...item, reportedLicense: item.license, license: override.license, override }
 }
 
 const normalizeLicense = (license) => {
@@ -176,11 +177,16 @@ const licenseCheck = async() => {
     })
   }
 
-  // Classify, then apply overrides for packages where auto-detection failed
+  // Classify, then apply overrides for findings that need a decision (warn/unknown)
   report = report
     .map(item => ({ ...item, status: classify(item.license, policy) }))
     .map(item => applyOverride(item, policy.overrides))
-    .map(item => item.status === 'override-expired' ? item : { ...item, status: classify(item.license, policy) })
+    .map(item => {
+      if (item.status === 'override-expired') return item
+      // An approved override settles the finding, unless the approved license itself is forbidden
+      if (item.override) return { ...item, status: classify(item.license, policy) === 'forbidden' ? 'forbidden' : 'allowed' }
+      return item
+    })
 
   const violations = report.filter(r => r.status === 'forbidden')
   const warnings   = report.filter(r => r.status === 'warn')
