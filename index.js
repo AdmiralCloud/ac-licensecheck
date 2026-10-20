@@ -2,6 +2,7 @@ const { promises: fs } = require("fs")
 const { execFile: execFileCb } = require("child_process")
 const { promisify } = require("util")
 const execFile = promisify(execFileCb)
+const { readLockfile, resolveDirect, allPackages } = require('./lockfile')
 
 const licenseMapping = [
   { license: 'agpl-3.0',    link: 'https://choosealicense.com/licenses/agpl-3.0/' },
@@ -125,17 +126,23 @@ const normalizeLicense = (license) => {
   return 'n/a'
 }
 
+// p.resolved = version pinned in the lockfile. Without it npm returns the license of the latest published version
 const fetchLicense = async(p) => {
   if (p.version.startsWith('git+ssh')) {
     return { package: p.package, license: 'Private package' }
   }
+  const versionInfo = p.resolved
+    ? { version: p.resolved, versionSource: 'lockfile' }
+    : { version: null, versionSource: 'latest' }
+  const spec = p.resolved ? `${p.package}@${p.resolved}` : p.package
   try {
-    const response = await execFile('npm', ['info', p.package, '--json'])
-    const parsed = JSON.parse(response.stdout)
-    return { package: p.package, license: normalizeLicense(parsed.license ?? parsed.licenses) }
+    const response = await execFile('npm', ['info', spec, '--json'])
+    // npm may answer with a list of versions (oldest first), the last one is the latest
+    const parsed = [].concat(JSON.parse(response.stdout)).pop()
+    return { package: p.package, ...versionInfo, license: normalizeLicense(parsed.license ?? parsed.licenses) }
   }
   catch {
-    return { package: p.package, license: 'n/a' }
+    return { package: p.package, ...versionInfo, license: 'n/a' }
   }
 }
 
@@ -143,6 +150,7 @@ const licenseCheck = async() => {
   const args = process.argv.slice(2)
   const packagePath = args.find(a => !a.startsWith('--')) || '.'
   const jsonMode = args.includes('--json')
+  const transitiveMode = args.includes('--transitive')
   const configPath = args.find(a => a.startsWith('--config='))?.split('=')[1]
 
   // Load license policy if provided
@@ -160,7 +168,24 @@ const licenseCheck = async() => {
   const name = pjson.name
 
   const merged = { ...pjson.dependencies, ...pjson.devDependencies }
-  const packages = Object.entries(merged).map(([pkg, version]) => ({ package: pkg, version }))
+  const lockEntries = await readLockfile(packagePath)
+  if (!lockEntries) {
+    console.error('No lockfile found, licenses are read from the latest published versions')
+    if (transitiveMode) console.error('--transitive needs a lockfile, only direct dependencies are checked')
+  }
+
+  const packages = Object.entries(merged).map(([pkg, version]) => ({
+    package: pkg,
+    version,
+    resolved: lockEntries ? resolveDirect(lockEntries, pkg, version) : undefined
+  }))
+
+  if (transitiveMode && lockEntries) {
+    const direct = new Set(packages.map(p => `${p.package}@${p.resolved}`))
+    allPackages(lockEntries)
+      .filter(p => !direct.has(`${p.name}@${p.version}`))
+      .forEach(p => packages.push({ package: p.name, version: p.version, resolved: p.version, transitive: true }))
+  }
   packages.sort((a, b) => a.package.localeCompare(b.package))
 
   // Fetch in parallel batches
@@ -171,9 +196,9 @@ const licenseCheck = async() => {
     const batch = packages.slice(i, i + BATCH_SIZE)
     if (!jsonMode) console.log(`Progress: ${i}/${packages.length}`)
     const results = await Promise.allSettled(batch.map(fetchLicense))
-    results.forEach(r => {
+    results.forEach((r, index) => {
       /* c8 ignore next -- fetchLicense never rejects, allSettled always fulfills */
-      if (r.status === 'fulfilled') report.push(r.value)
+      if (r.status === 'fulfilled') report.push(batch[index].transitive ? { ...r.value, transitive: true } : r.value)
     })
   }
 
@@ -220,6 +245,7 @@ const licenseCheck = async() => {
     reportText += `|Total|${packages.length}|\n|Analyzed|${report.length}|\n`
     reportText += `|Violations|${violations.length}|\n|Warnings|${warnings.length}|\n`
     reportText += `|Expired overrides|${expired.length}|\n`
+    reportText += `|Versions from lockfile|${report.filter(r => r.versionSource === 'lockfile').length}|\n`
     if (configPath) {
       reportText += `\n### Licenses\n|License|Count|%|Status|Info|\n|---|---|---|---|---|\n`
       for (const [key, val] of Object.entries(groups)) {

@@ -3,7 +3,7 @@ const js = require('@eslint/js')
 
 module.exports = [
   {
-    files: ['index.js', 'test/**/*.js'],
+    files: ['index.js', 'lockfile.js', 'test/**/*.js'],
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: 'commonjs',

@@ -3,15 +3,16 @@
 [![Tests](https://github.com/AdmiralCloud/ac-licensecheck/actions/workflows/test.yml/badge.svg)](https://github.com/AdmiralCloud/ac-licensecheck/actions/workflows/test.yml)
 [![CodeQL](https://github.com/AdmiralCloud/ac-licensecheck/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/AdmiralCloud/ac-licensecheck/actions/workflows/github-code-scanning/codeql)
 
-Reads the `package.json` of a given repository and determines licenses for all dependencies.
+Reads the `package.json` of a given repository and determines licenses for all dependencies, using the versions pinned in the lockfile.
 
 ## How it works
 
 1. Reads `dependencies` and `devDependencies` from the `package.json` of the target repository.
-2. Fetches the license of each package from the npm registry (`npm info <package>`, latest published version).
-3. Classifies each license against the license policy file (see below) as `allowed`, `warn`, `forbidden` or `unknown`.
-4. Applies approved overrides from the policy file to findings that need a decision (`warn` or `unknown`).
-5. Prints a markdown or JSON report. Exit code 1 if forbidden licenses or expired overrides are found.
+2. Reads the pinned versions from `yarn.lock` or `package-lock.json` (if present).
+3. Fetches the license of each package from the npm registry (`npm info <package>@<version>`). Without a lockfile entry the latest published version is used (`versionSource: "latest"`).
+4. Classifies each license against the license policy file (see below) as `allowed`, `warn`, `forbidden` or `unknown`.
+5. Applies approved overrides from the policy file to findings that need a decision (`warn` or `unknown`).
+6. Prints a markdown or JSON report. Exit code 1 if forbidden licenses or expired overrides are found.
 
 The tool only evaluates the policy file it is given. Which licenses are allowed, how findings are reviewed and who approves overrides is described in the process documentation of the central scan: [ac-compliance/licenses](https://github.com/AdmiralCloud/ac-compliance/tree/main/licenses).
 
@@ -19,8 +20,9 @@ Combined licenses (SPDX expressions): `A OR B` (free choice) takes the mildest s
 
 ## Limitations
 
-- Only **direct** dependencies from `package.json` are checked, not transitive dependencies.
-- The license is read from the **latest published version** on npm, not from the version pinned in the lockfile.
+- By default only **direct** dependencies from `package.json` are checked. Use `--transitive` to include all packages of the lockfile.
+- The license is read from the version pinned in the lockfile. Without a lockfile (or without an entry for a package) the **latest published version** on npm is used, marked as `versionSource: "latest"` in the JSON report.
+- Supported lockfiles: `yarn.lock` (v1 and berry), `package-lock.json` (v1, v2, v3). If both exist, `yarn.lock` is used.
 - `devDependencies` are included.
 - Packages installed from private git URLs (`git+ssh`) cannot be looked up and get status `private`.
 - Only license types are checked, not whether license notices are shipped with a product.
@@ -28,13 +30,14 @@ Combined licenses (SPDX expressions): `A OR B` (free choice) takes the mildest s
 ## Usage
 
 ```
-node index.js [path] [--json] [--config=<policy.json>]
+node index.js [path] [--json] [--transitive] [--config=<policy.json>]
 ```
 
 | Argument | Description |
 |---|---|
 | `path` | Path to the repository to analyze (default: `.`) |
 | `--json` | Output machine-readable JSON instead of markdown |
+| `--transitive` | Also check transitive dependencies from the lockfile (many more packages, takes longer) |
 | `--config=<path>` | Path to a JSON license policy file |
 
 ## Output
@@ -63,7 +66,7 @@ node index.js ../ac-sanitizer --json --config=policy.json
   "warnings": [],
   "unknowns": [],
   "expired": [],
-  "report": [{ "package": "lodash", "license": "MIT", "status": "allowed" }]
+  "report": [{ "package": "lodash", "version": "4.17.21", "versionSource": "lockfile", "license": "MIT", "status": "allowed" }]
 }
 ```
 

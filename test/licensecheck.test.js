@@ -6,6 +6,7 @@ let mockExecImpl = (cmd, args, cb) => cb(null, { stdout: '{"license":"MIT"}' })
 require('child_process').execFile = (...args) => mockExecImpl(...args)
 
 const { fetchLicense, classify, applyOverride, licenseCheck } = require('../index')
+const { parseYarnLock, parsePackageLock, resolveDirect, allPackages } = require('../lockfile')
 
 const FIXTURES = path.join(__dirname, 'fixtures')
 const POLICY   = path.join(FIXTURES, 'policy.json')
@@ -168,43 +169,60 @@ describe('fetchLicense', () => {
   it('returns the license from npm info', async () => {
     mockExecImpl = (cmd, args, cb) => cb(null, { stdout: '{"license":"ISC"}' })
     const result = await fetchLicense({ package: 'some-pkg', version: '^1.0.0' })
-    assert.deepStrictEqual(result, { package: 'some-pkg', license: 'ISC' })
+    assert.deepStrictEqual(result, { package: 'some-pkg', version: null, versionSource: 'latest', license: 'ISC' })
+  })
+
+  it('uses the last entry when npm answers with a list of versions', async () => {
+    mockExecImpl = (cmd, args, cb) => cb(null, { stdout: '[{"license":"GPL-3.0"},{"license":"MIT"}]' })
+    const result = await fetchLicense({ package: 'some-pkg', version: '^1.0.0' })
+    assert.strictEqual(result.license, 'MIT')
+  })
+
+  it('asks npm for the version pinned in the lockfile', async () => {
+    let requested
+    mockExecImpl = (cmd, args, cb) => {
+      requested = args[1]
+      cb(null, { stdout: '{"license":"MIT"}' })
+    }
+    const result = await fetchLicense({ package: 'some-pkg', version: '^1.0.0', resolved: '1.2.3' })
+    assert.strictEqual(requested, 'some-pkg@1.2.3')
+    assert.deepStrictEqual(result, { package: 'some-pkg', version: '1.2.3', versionSource: 'lockfile', license: 'MIT' })
   })
 
   it('returns "n/a" when license field is missing', async () => {
     mockExecImpl = (cmd, args, cb) => cb(null, { stdout: '{"name":"some-pkg","version":"1.0.0"}' })
     const result = await fetchLicense({ package: 'some-pkg', version: '^1.0.0' })
-    assert.deepStrictEqual(result, { package: 'some-pkg', license: 'n/a' })
+    assert.deepStrictEqual(result, { package: 'some-pkg', version: null, versionSource: 'latest', license: 'n/a' })
   })
 
   it('returns "n/a" when execFile throws', async () => {
     mockExecImpl = (cmd, args, cb) => cb(new Error('network error'))
     const result = await fetchLicense({ package: 'broken-pkg', version: '^1.0.0' })
-    assert.deepStrictEqual(result, { package: 'broken-pkg', license: 'n/a' })
+    assert.deepStrictEqual(result, { package: 'broken-pkg', version: null, versionSource: 'latest', license: 'n/a' })
   })
 
   it('returns "n/a" when npm returns invalid JSON', async () => {
     mockExecImpl = (cmd, args, cb) => cb(null, { stdout: 'not json' })
     const result = await fetchLicense({ package: 'bad-pkg', version: '^1.0.0' })
-    assert.deepStrictEqual(result, { package: 'bad-pkg', license: 'n/a' })
+    assert.deepStrictEqual(result, { package: 'bad-pkg', version: null, versionSource: 'latest', license: 'n/a' })
   })
 
   it('normalizes license object { type, url } to a string', async () => {
     mockExecImpl = (cmd, args, cb) => cb(null, { stdout: '{"license":{"type":"MIT","url":"https://example.com"}}' })
     const result = await fetchLicense({ package: 'old-pkg', version: '^1.0.0' })
-    assert.deepStrictEqual(result, { package: 'old-pkg', license: 'MIT' })
+    assert.deepStrictEqual(result, { package: 'old-pkg', version: null, versionSource: 'latest', license: 'MIT' })
   })
 
   it('normalizes license array to a comma-separated string', async () => {
     mockExecImpl = (cmd, args, cb) => cb(null, { stdout: '{"license":["MIT","Apache-2.0"]}' })
     const result = await fetchLicense({ package: 'multi-pkg', version: '^1.0.0' })
-    assert.deepStrictEqual(result, { package: 'multi-pkg', license: 'MIT, Apache-2.0' })
+    assert.deepStrictEqual(result, { package: 'multi-pkg', version: null, versionSource: 'latest', license: 'MIT, Apache-2.0' })
   })
 
   it('falls back to licenses[] field when license is absent (old npm format)', async () => {
     mockExecImpl = (cmd, args, cb) => cb(null, { stdout: '{"licenses":["MIT"]}' })
     const result = await fetchLicense({ package: 'html5-history-api', version: '^4.0.0' })
-    assert.deepStrictEqual(result, { package: 'html5-history-api', license: 'MIT' })
+    assert.deepStrictEqual(result, { package: 'html5-history-api', version: null, versionSource: 'latest', license: 'MIT' })
   })
 })
 
@@ -493,5 +511,102 @@ describe('licenseCheck (override of a warn finding)', () => {
   it('keeps the warning when no override exists', async() => {
     const parsed = await runWithPolicy({})
     assert.strictEqual(parsed.warnings.length, 1)
+  })
+})
+
+// ─── lockfile ─────────────────────────────────────────────────────────────────
+
+describe('lockfile', () => {
+  const yarnV1 = `# yarn lockfile v1
+
+
+"@scope/pkg@^2.0.0":
+  version "2.1.0"
+  resolved "https://registry.yarnpkg.com/@scope/pkg/-/pkg-2.1.0.tgz"
+
+lodash@^4.0.0, lodash@^4.17.0:
+  version "4.17.21"
+  resolved "https://registry.yarnpkg.com/lodash/-/lodash-4.17.21.tgz"
+`
+
+  const yarnBerry = `__metadata:
+  version: 8
+
+"lodash@npm:^4.0.0":
+  version: 4.17.21
+  resolution: "lodash@npm:4.17.21"
+
+"my-app@workspace:.":
+  version: 0.0.0-use.local
+  resolution: "my-app@workspace:."
+`
+
+  it('parses yarn.lock v1 including grouped and scoped specifiers', () => {
+    const entries = parseYarnLock(yarnV1)
+    assert.strictEqual(resolveDirect(entries, '@scope/pkg', '^2.0.0'), '2.1.0')
+    assert.strictEqual(resolveDirect(entries, 'lodash', '^4.17.0'), '4.17.21')
+    assert.strictEqual(resolveDirect(entries, 'lodash', '^3.0.0'), undefined)
+  })
+
+  it('parses yarn berry and ignores metadata and workspaces', () => {
+    const entries = parseYarnLock(yarnBerry)
+    assert.deepStrictEqual(entries, [{ name: 'lodash', range: '^4.0.0', version: '4.17.21' }])
+  })
+
+  it('parses package-lock.json v3 and marks top level packages', () => {
+    const entries = parsePackageLock(JSON.stringify({
+      lockfileVersion: 3,
+      packages: {
+        '': { name: 'app' },
+        'node_modules/a': { version: '1.0.0' },
+        'node_modules/a/node_modules/b': { version: '2.0.0' }
+      }
+    }))
+    assert.strictEqual(resolveDirect(entries, 'a', '^1.0.0'), '1.0.0')
+    assert.strictEqual(resolveDirect(entries, 'b', '^2.0.0'), undefined)
+    assert.deepStrictEqual(allPackages(entries).map(p => `${p.name}@${p.version}`), ['a@1.0.0', 'b@2.0.0'])
+  })
+
+  it('parses package-lock.json v1 with nested dependencies', () => {
+    const entries = parsePackageLock(JSON.stringify({
+      lockfileVersion: 1,
+      dependencies: { a: { version: '1.0.0', dependencies: { b: { version: '2.0.0' } } } }
+    }))
+    assert.strictEqual(resolveDirect(entries, 'a', '^1.0.0'), '1.0.0')
+    assert.strictEqual(entries.length, 2)
+  })
+})
+
+describe('licenseCheck (lockfile)', () => {
+  const fs = require('fs')
+  const os = require('os')
+  let dir
+
+  before(() => {
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'aclc-'))
+    fs.writeFileSync(path.join(dir, 'package.json'), JSON.stringify({ name: 'locked', dependencies: { 'pkg-mit': '^1.0.0' } }))
+    fs.writeFileSync(path.join(dir, 'yarn.lock'), 'pkg-mit@^1.0.0:\n  version "1.4.0"\n\npkg-isc@^1.0.0:\n  version "1.1.0"\n')
+  })
+
+  after(() => fs.rmSync(dir, { recursive: true, force: true }))
+
+  it('checks the pinned version of direct dependencies', async () => {
+    const requested = []
+    mockExecImpl = (cmd, args, cb) => {
+      requested.push(args[1])
+      fixtureExec(cmd, ['info', args[1].split('@')[0]], cb)
+    }
+    const { output } = await run([dir, '--json'])
+    assert.deepStrictEqual(requested, ['pkg-mit@1.4.0'])
+    assert.strictEqual(JSON.parse(output).report[0].versionSource, 'lockfile')
+  })
+
+  it('also checks transitive dependencies with --transitive', async () => {
+    mockExecImpl = (cmd, args, cb) => fixtureExec(cmd, ['info', args[1].split('@')[0]], cb)
+    const { output } = await run([dir, '--json', '--transitive'])
+    const report = JSON.parse(output).report
+    assert.deepStrictEqual(report.map(r => r.package), ['pkg-isc', 'pkg-mit'])
+    assert.strictEqual(report[0].transitive, true)
+    assert.strictEqual(report[1].transitive, undefined)
   })
 })
