@@ -1,3 +1,18 @@
+## [0.2.7](https://github.com/admiralcloud/ac-licensecheck/compare/v0.2.6..v0.2.7) (2026-10-20 19:11:33)
+
+
+### Bug Fix
+
+
+* **App:** Use pinned version instead of latest | MP | [bffc36a5c06fe604fa50dc1e92042868ee22d698](https://github.com/admiralcloud/ac-licensecheck/commit/bffc36a5c06fe604fa50dc1e92042868ee22d698)    
+Use the actual pinned version instead of the latest one from npm  
+Related issues:
+### Chores
+
+
+* **App:** Updated packages | MP | [da22d4c34397e0d09412eb67a32df1c2a6aa0c8f](https://github.com/admiralcloud/ac-licensecheck/commit/da22d4c34397e0d09412eb67a32df1c2a6aa0c8f)    
+Updated packages  
+Related issues:
 ## [0.2.6](https://github.com/admiralcloud/ac-licensecheck/compare/v0.2.5..v0.2.6) (2026-10-09 14:30:35)
 
 
